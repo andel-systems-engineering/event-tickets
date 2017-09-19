@@ -172,14 +172,12 @@ class Tribe__Tickets__Tickets_Handler {
 			}
 		}
 
+		// In setting the $parent_slug to null here we are creating an empty key in the global $submenu.
 		$this->attendees_page = add_submenu_page( null, 'Attendee list', 'Attendee list', $cap, self::$attendees_slug, array( $this, 'attendees_page_inside' ) );
 
 		add_action( 'admin_enqueue_scripts', array( $this, 'attendees_page_load_css_js' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'attendees_page_load_pointers' ) );
 		add_action( 'load-' . $this->attendees_page, array( $this, 'attendees_page_screen_setup' ) );
-
-		// Set the current screen in WP Admin to the attendees page.
-		add_filter( 'current_screen', array( $this, 'set_screen' ) );
 
 		/**
 		 * This is a workaround to fix the problem
@@ -275,6 +273,8 @@ class Tribe__Tickets__Tickets_Handler {
 	 * Setups the Attendees screen data.
 	 */
 	public function attendees_page_screen_setup() {
+		global $current_screen, $typenow;
+
 		/* There's no reason for attendee screen setup to happen twice, but because
 		 * of a fix for bug #46198 it can indeed be called twice in the same request.
 		 * This flag variable is used to workaround that.
@@ -300,6 +300,10 @@ class Tribe__Tickets__Tickets_Handler {
 		 */
 		if ( current_filter() === 'admin_init' ) {
 			$this->attendees_page_load_css_js( $this->attendees_page );
+
+			if ( 'post' === $typenow ) {
+				$current_screen = WP_Screen::get( $this->attendees_page );
+			}
 		}
 
 		if ( ! empty( $_GET['action'] ) && in_array( $_GET['action'], array( 'email' ) ) ) {
@@ -799,27 +803,5 @@ class Tribe__Tickets__Tickets_Handler {
 		), admin_url( 'edit.php' ) );
 
 		return $url;
-	}
-
-	/**
-	 * Set the WP Screen object to the attendees page when viewing it.
-	 *
-	 * Note: Sets `$typenow` global as \WP_Screen::set_current_screen() might misset it.
-	 *
-	 * @see `current_screen` action
-	 */
-	public function set_screen( $current_screen ) {
-		global $typenow;
-
-		if ( $this->is_attendees_page() ) {
-			$current_screen = WP_Screen::get( $this->attendees_page );
-		}
-
-		// `_wp_menu_output()` expects `$typenow` to be empty for 'post' post_type.
-		if ( 'post' === $current_screen->post_type ) {
-			$typenow = '';
-		}
-
-		return $current_screen;
 	}
 }
